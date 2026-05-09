@@ -1,6 +1,6 @@
 --[[
     Luau Omega Clicker
-    Made by Rubix - v1.0.5
+    Made by Rubix - v1.1
     Place this LocalScript in StarterGui
 ]]
 
@@ -89,6 +89,27 @@ local function formatMult()
     else return "x" .. string.format("%.2e", m) end
 end
 
+local function getProgressInfo()
+    if tiers[4] >= 7 then
+        local currentPoints = ((tiers[3] - 1) * 24 + (tiers[2] - 1)) + (tiers[1] / 1000)
+        local prog = math.clamp(currentPoints / 72, 0, 1)
+        return prog, "Next: Reset!"
+    end
+    
+    local inOmega = tiers[2] > 0 or tiers[3] > 0 or tiers[4] > 0
+    if not inOmega then
+        local prog = math.clamp(tiers[1] / 340e36, 0, 1)
+        return prog, "Next: Ω"
+    end
+    
+    local currentPoints = ((tiers[3] - 1) * 24 + (tiers[2] - 1)) + (tiers[1] / 1000)
+    local maxPoints = 3 * 24 -- 72
+    local prog = math.clamp(currentPoints / maxPoints, 0, 1)
+    
+    local nextPower = tiers[4] + 2
+    return prog, "Next: Ω^" .. nextPower
+end
+
 -- ===================== GUI SETUP =====================
 local gui = Instance.new("ScreenGui")
 gui.Name = "RubixClicker"
@@ -169,6 +190,7 @@ local themeBtn = createCtrlBtn("🎨", -68)
 local starsBtn = createCtrlBtn("★", -102)
 local descBtn = createCtrlBtn("?", -136)
 
+-- Content Frame
 local content = Instance.new("Frame")
 content.Size = UDim2.new(1, 0, 1, -32)
 content.Position = UDim2.new(0, 0, 0, 32)
@@ -200,9 +222,43 @@ multLabel.Font = Enum.Font.GothamMedium
 multLabel.ZIndex = 3
 multLabel.Parent = content
 
+-- Progress Bar Container
+local barContainer = Instance.new("Frame")
+barContainer.Size = UDim2.new(0.8, 0, 0, 16)
+barContainer.Position = UDim2.new(0.5, 0, 0, 82)
+barContainer.AnchorPoint = Vector2.new(0.5, 0)
+barContainer.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
+barContainer.BorderSizePixel = 0
+barContainer.ZIndex = 3
+barContainer.Parent = content
+Instance.new("UICorner", barContainer).CornerRadius = UDim.new(0, 8)
+
+local barStroke = Instance.new("UIStroke")
+barStroke.Color = Color3.fromRGB(80, 80, 100)
+barStroke.Thickness = 1
+barStroke.Parent = barContainer
+
+local barFill = Instance.new("Frame")
+barFill.Size = UDim2.new(0, 0, 1, 0)
+barFill.BackgroundColor3 = Color3.fromRGB(130, 50, 230)
+barFill.BorderSizePixel = 0
+barFill.ZIndex = 4
+barFill.Parent = barContainer
+Instance.new("UICorner", barFill).CornerRadius = UDim.new(0, 8)
+
+local barLabel = Instance.new("TextLabel")
+barLabel.Size = UDim2.new(1, 0, 1, 0)
+barLabel.BackgroundTransparency = 1
+barLabel.Text = "Next: Ω"
+barLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+barLabel.TextSize = 10
+barLabel.Font = Enum.Font.GothamBold
+barLabel.ZIndex = 5
+barLabel.Parent = barContainer
+
 local button = Instance.new("TextButton")
 button.Size = UDim2.new(0, 220, 0, 72)
-button.Position = UDim2.new(0.5, -110, 0, 90)
+button.Position = UDim2.new(0.5, -110, 0, 104)
 button.BackgroundColor3 = Color3.fromRGB(100, 30, 200)
 button.Text = "✦  CLICK  ✦"
 button.TextColor3 = Color3.new(1, 1, 1)
@@ -224,13 +280,14 @@ local creditLabel = Instance.new("TextLabel")
 creditLabel.Size = UDim2.new(1, 0, 0, 16)
 creditLabel.Position = UDim2.new(0, 0, 1, -20)
 creditLabel.BackgroundTransparency = 1
-creditLabel.Text = "Made by Rubix - v1.0.5"
+creditLabel.Text = "Made by Rubix - v1.1"
 creditLabel.TextColor3 = Color3.fromRGB(100, 100, 100)
 creditLabel.TextSize = 11
 creditLabel.Font = Enum.Font.Gotham
 creditLabel.ZIndex = 3
 creditLabel.Parent = content
 
+-- Description Window
 local descWindow = Instance.new("Frame")
 descWindow.Size = UDim2.new(0, 280, 0, 140)
 descWindow.Position = UDim2.new(0.5, -140, 0.5, -70)
@@ -272,6 +329,51 @@ descClose.ZIndex = 11
 descClose.Parent = descWindow
 Instance.new("UICorner", descClose).CornerRadius = UDim.new(0, 8)
 
+-- Theme Menu
+local closeMenuBtn = Instance.new("TextButton")
+closeMenuBtn.Size = UDim2.new(1, 0, 1, 0)
+closeMenuBtn.BackgroundTransparency = 1
+closeMenuBtn.Text = ""
+closeMenuBtn.Visible = false
+closeMenuBtn.ZIndex = 19
+closeMenuBtn.Parent = gui
+
+local themeMenu = Instance.new("Frame")
+themeMenu.Size = UDim2.new(0, 90, 0, #THEMES * 22)
+themeMenu.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
+themeMenu.BorderSizePixel = 0
+themeMenu.Visible = false
+themeMenu.ZIndex = 20
+themeMenu.Parent = gui
+Instance.new("UICorner", themeMenu).CornerRadius = UDim.new(0, 8)
+local themeMenuStroke = Instance.new("UIStroke")
+themeMenuStroke.Color = Color3.fromRGB(150, 150, 150)
+themeMenuStroke.Thickness = 1
+themeMenuStroke.Parent = themeMenu
+
+local listLayout = Instance.new("UIListLayout")
+listLayout.Padding = UDim.new(0, 2)
+listLayout.Parent = themeMenu
+
+for i, theme in ipairs(THEMES) do
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(1, 0, 0, 20)
+    btn.BackgroundColor3 = theme.btn
+    btn.TextColor3 = theme.btnTxt
+    btn.Text = theme.name
+    btn.TextSize = 12
+    btn.Font = Enum.Font.Gotham
+    btn.BorderSizePixel = 0
+    btn.ZIndex = 21
+    btn.Parent = themeMenu
+    btn.MouseButton1Click:Connect(function()
+        currentThemeIndex = i
+        applyTheme()
+        themeMenu.Visible = false
+        closeMenuBtn.Visible = false
+    end)
+end
+
 -- ===================== LOGIC =====================
 local function triggerReset()
     isFlashing = true
@@ -292,7 +394,6 @@ local function triggerReset()
 end
 
 local function normalize()
-    -- Prevent infinity or NaN infinite loops
     if tiers[1] ~= tiers[1] or tiers[1] == math.huge then
         tiers = {999, 24, 3, 7}
         triggerReset()
@@ -305,7 +406,6 @@ local function normalize()
         if tiers[1] >= 340e36 then
             tiers[1] = tiers[1] / 1000
             tiers[2] = 1
-            -- Fall through to omega processing
         else
             return
         end
@@ -333,6 +433,10 @@ end
 function updateDisplay()
     valueLabel.Text = getDisplay()
     multLabel.Text = formatMult()
+    
+    local prog, text = getProgressInfo()
+    barFill.Size = UDim2.new(prog, 0, 1, 0)
+    barLabel.Text = text
 end
 
 function applyTheme()
@@ -350,6 +454,8 @@ function applyTheme()
     themeBtn.BackgroundColor3 = t.acc
     starsBtn.BackgroundColor3 = t.acc
     descBtn.BackgroundColor3 = t.acc
+    barFill.BackgroundColor3 = t.acc
+    themeMenu.BackgroundColor3 = t.bg
 end
 
 -- ===================== EVENTS =====================
@@ -382,8 +488,21 @@ minBtn.MouseButton1Click:Connect(function()
 end)
 
 themeBtn.MouseButton1Click:Connect(function()
-    currentThemeIndex = (currentThemeIndex % #THEMES) + 1
-    applyTheme()
+    if themeMenu.Visible then
+        themeMenu.Visible = false
+        closeMenuBtn.Visible = false
+    else
+        local absPos = frame.AbsolutePosition
+        local absSize = frame.AbsoluteSize
+        themeMenu.Position = UDim2.new(0, absPos.X + absSize.X - 95, 0, absPos.Y + 34)
+        themeMenu.Visible = true
+        closeMenuBtn.Visible = true
+    end
+end)
+
+closeMenuBtn.MouseButton1Click:Connect(function()
+    themeMenu.Visible = false
+    closeMenuBtn.Visible = false
 end)
 
 starsBtn.MouseButton1Click:Connect(function()
