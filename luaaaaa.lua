@@ -10,7 +10,7 @@ local UserInputService = game:GetService("UserInputService")
 local player = Players.LocalPlayer
 
 -- ===================== STATE =====================
-local tiers = {100, 0, 0, 0} -- Normal, Greek(1-24), Sub(1-4), Power(1-8)
+local tiers = {100, 0, 0, 0} -- Normal, Greek(1-24), Sub(1-3 -> _2,_3,_4), Power(1-7 -> ^2..^8)
 local isFlashing = false
 local isMinimized = false
 local starsVisible = false
@@ -59,18 +59,18 @@ local function getDisplay()
     local parts = {}
 
     if tiers[4] > 0 then
-        table.insert(parts, tiers[4] .. "Ω^" .. (tiers[4] + 1))
+        table.insert(parts, tostring(tiers[4]) .. "Ω^" .. tostring(tiers[4] + 1))
     end
     if tiers[3] > 0 then
-        local g = GREEKS[tiers[2] + 1]
-        local s = "_" .. (tiers[3] + 1)
-        local p = tiers[4] > 0 and "^" .. tiers[4] or ""
-        table.insert(parts, tiers[3] .. g .. s .. p)
+        local g = GREEKS[tiers[2]]
+        local s = "_" .. tostring(tiers[3] + 1)
+        local p = tiers[4] > 0 and ("^" .. tostring(tiers[4])) or ""
+        table.insert(parts, tostring(tiers[3]) .. g .. s .. p)
     end
     if tiers[2] > 0 then
-        local g = GREEKS[tiers[2] + 1]
-        local p = tiers[4] > 1 and "^" .. (tiers[4] - 1) or ""
-        table.insert(parts, tiers[2] .. g .. p)
+        local g = GREEKS[tiers[2]]
+        local p = tiers[4] > 1 and ("^" .. tostring(tiers[4] - 1)) or ""
+        table.insert(parts, tostring(tiers[2]) .. g .. p)
     end
 
     table.insert(parts, formatNormal(tiers[1], inOmega))
@@ -125,11 +125,11 @@ local function normalize()
         if tiers[2] > 24 then
             tiers[2] = 1
             tiers[3] = tiers[3] + 1
-            if tiers[3] > 4 then
+            if tiers[3] > 3 then -- _2, _3, _4 (3 levels)
                 tiers[3] = 1
                 tiers[4] = tiers[4] + 1
-                if tiers[4] > 8 then
-                    tiers = {999, 24, 4, 8}
+                if tiers[4] > 7 then -- ^2 through ^8 (7 levels)
+                    tiers = {999, 24, 3, 7}
                     triggerReset()
                     return
                 end
