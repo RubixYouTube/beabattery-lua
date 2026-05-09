@@ -36,6 +36,7 @@ local THEMES = {
 
 -- ===================== FORMATTING =====================
 local function formatNormal(val, inOmega)
+    if val <= 0 or val ~= val then return "0" end
     if inOmega then
         if val >= 100 then return string.format("%.1f", val)
         elseif val >= 10 then return string.format("%.2f", val)
@@ -62,13 +63,13 @@ local function getDisplay()
         table.insert(parts, tostring(tiers[4]) .. "Ω^" .. tostring(tiers[4] + 1))
     end
     if tiers[3] > 0 then
-        local g = GREEKS[tiers[2]]
+        local g = GREEKS[tiers[2]] or "?"
         local s = "_" .. tostring(tiers[3] + 1)
         local p = tiers[4] > 0 and ("^" .. tostring(tiers[4])) or ""
         table.insert(parts, tostring(tiers[3]) .. g .. s .. p)
     end
     if tiers[2] > 0 then
-        local g = GREEKS[tiers[2]]
+        local g = GREEKS[tiers[2]] or "?"
         local p = tiers[4] > 1 and ("^" .. tostring(tiers[4] - 1)) or ""
         table.insert(parts, tostring(tiers[2]) .. g .. p)
     end
@@ -88,61 +89,6 @@ local function formatMult()
     else return "x" .. string.format("%.2e", m) end
 end
 
--- ===================== LOGIC =====================
-local function triggerReset()
-    isFlashing = true
-    task.spawn(function()
-        for i = 1, 14 do
-            local on = (i % 2 == 0)
-            button.BackgroundColor3 = on and Color3.fromRGB(255, 255, 120) or Color3.fromRGB(255, 80, 80)
-            frame.BackgroundColor3 = on and Color3.fromRGB(60, 60, 15) or Color3.fromRGB(60, 15, 15)
-            glow.Color = on and Color3.fromRGB(255, 255, 120) or Color3.fromRGB(255, 60, 60)
-            valueLabel.TextColor3 = on and Color3.new(1, 1, 1) or Color3.fromRGB(255, 220, 50)
-            task.wait(0.07)
-        end
-        tiers = {100, 0, 0, 0}
-        applyTheme()
-        isFlashing = false
-        updateDisplay()
-    end)
-end
-
-local function normalize()
-    local inOmega = tiers[2] > 0 or tiers[3] > 0 or tiers[4] > 0
-    
-    if not inOmega then
-        if tiers[1] >= 340e36 then
-            tiers[1] = tiers[1] / 1000
-            tiers[2] = 1
-            normalize()
-        end
-        return
-    end
-
-    while tiers[1] >= 1000 do
-        tiers[1] = tiers[1] / 1000
-        tiers[2] = tiers[2] + 1
-        if tiers[2] > 24 then
-            tiers[2] = 1
-            tiers[3] = tiers[3] + 1
-            if tiers[3] > 3 then -- _2, _3, _4 (3 levels)
-                tiers[3] = 1
-                tiers[4] = tiers[4] + 1
-                if tiers[4] > 7 then -- ^2 through ^8 (7 levels)
-                    tiers = {999, 24, 3, 7}
-                    triggerReset()
-                    return
-                end
-            end
-        end
-    end
-end
-
-function updateDisplay()
-    valueLabel.Text = getDisplay()
-    multLabel.Text = formatMult()
-end
-
 -- ===================== GUI SETUP =====================
 local gui = Instance.new("ScreenGui")
 gui.Name = "RubixClicker"
@@ -150,7 +96,6 @@ gui.ResetOnSpawn = false
 gui.IgnoreGuiInset = true
 gui.Parent = player:WaitForChild("PlayerGui")
 
--- Stars Background
 local starsFrame = Instance.new("Frame")
 starsFrame.Size = UDim2.new(1, 0, 1, 0)
 starsFrame.BackgroundTransparency = 1
@@ -168,18 +113,8 @@ for _ = 1, 80 do
     star.ZIndex = 0
     star.Parent = starsFrame
     Instance.new("UICorner", star).CornerRadius = UDim.new(1, 0)
-    
-    task.spawn(function()
-        local t = math.random() * 10
-        while true do
-            t += 0.04
-            star.BackgroundTransparency = 0.2 + 0.6 * math.abs(math.sin(t))
-            task.wait(0.03)
-        end
-    end)
 end
 
--- Main Frame
 local frame = Instance.new("Frame")
 frame.Size = UDim2.new(0, 320, 0, 260)
 frame.Position = UDim2.new(0.5, -160, 0.5, -130)
@@ -195,7 +130,6 @@ glow.Color = Color3.fromRGB(130, 50, 230)
 glow.Thickness = 2.5
 glow.Parent = frame
 
--- Top Bar (Draggable)
 local topBar = Instance.new("Frame")
 topBar.Size = UDim2.new(1, 0, 0, 32)
 topBar.BackgroundTransparency = 1
@@ -214,7 +148,6 @@ titleLabel.TextXAlignment = Enum.TextXAlignment.Left
 titleLabel.ZIndex = 3
 titleLabel.Parent = topBar
 
--- Control Buttons
 local function createCtrlBtn(text, posX)
     local b = Instance.new("TextButton")
     b.Size = UDim2.new(0, 28, 0, 22)
@@ -236,7 +169,6 @@ local themeBtn = createCtrlBtn("🎨", -68)
 local starsBtn = createCtrlBtn("★", -102)
 local descBtn = createCtrlBtn("?", -136)
 
--- Content Frame
 local content = Instance.new("Frame")
 content.Size = UDim2.new(1, 0, 1, -32)
 content.Position = UDim2.new(0, 0, 0, 32)
@@ -299,7 +231,6 @@ creditLabel.Font = Enum.Font.Gotham
 creditLabel.ZIndex = 3
 creditLabel.Parent = content
 
--- Description Window
 local descWindow = Instance.new("Frame")
 descWindow.Size = UDim2.new(0, 280, 0, 140)
 descWindow.Position = UDim2.new(0.5, -140, 0.5, -70)
@@ -341,9 +272,72 @@ descClose.ZIndex = 11
 descClose.Parent = descWindow
 Instance.new("UICorner", descClose).CornerRadius = UDim.new(0, 8)
 
--- ===================== THEMES =====================
+-- ===================== LOGIC =====================
+local function triggerReset()
+    isFlashing = true
+    task.spawn(function()
+        for i = 1, 14 do
+            local on = (i % 2 == 0)
+            button.BackgroundColor3 = on and Color3.fromRGB(255, 255, 120) or Color3.fromRGB(255, 80, 80)
+            frame.BackgroundColor3 = on and Color3.fromRGB(60, 60, 15) or Color3.fromRGB(60, 15, 15)
+            glow.Color = on and Color3.fromRGB(255, 255, 120) or Color3.fromRGB(255, 60, 60)
+            valueLabel.TextColor3 = on and Color3.new(1, 1, 1) or Color3.fromRGB(255, 220, 50)
+            task.wait(0.07)
+        end
+        tiers = {100, 0, 0, 0}
+        applyTheme()
+        isFlashing = false
+        updateDisplay()
+    end)
+end
+
+local function normalize()
+    -- Prevent infinity or NaN infinite loops
+    if tiers[1] ~= tiers[1] or tiers[1] == math.huge then
+        tiers = {999, 24, 3, 7}
+        triggerReset()
+        return
+    end
+
+    local inOmega = tiers[2] > 0 or tiers[3] > 0 or tiers[4] > 0
+    
+    if not inOmega then
+        if tiers[1] >= 340e36 then
+            tiers[1] = tiers[1] / 1000
+            tiers[2] = 1
+            -- Fall through to omega processing
+        else
+            return
+        end
+    end
+
+    while tiers[1] >= 1000 do
+        tiers[1] = tiers[1] / 1000
+        tiers[2] = tiers[2] + 1
+        if tiers[2] > 24 then
+            tiers[2] = 1
+            tiers[3] = tiers[3] + 1
+            if tiers[3] > 3 then
+                tiers[3] = 1
+                tiers[4] = tiers[4] + 1
+                if tiers[4] > 7 then
+                    tiers = {999, 24, 3, 7}
+                    triggerReset()
+                    return
+                end
+            end
+        end
+    end
+end
+
+function updateDisplay()
+    valueLabel.Text = getDisplay()
+    multLabel.Text = formatMult()
+end
+
 function applyTheme()
     local t = THEMES[currentThemeIndex]
+    if not t then return end
     frame.BackgroundColor3 = t.bg
     glow.Color = t.glow
     titleLabel.TextColor3 = t.txt
@@ -358,9 +352,7 @@ function applyTheme()
     descBtn.BackgroundColor3 = t.acc
 end
 
--- ===================== INTERACTIVITY =====================
-
--- Drag Logic
+-- ===================== EVENTS =====================
 local dragToggle, dragStart, startPos
 topBar.InputBegan:Connect(function(input)
     if (input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch) then
@@ -381,7 +373,6 @@ UserInputService.InputChanged:Connect(function(input)
     end
 end)
 
--- Minimizer
 minBtn.MouseButton1Click:Connect(function()
     isMinimized = not isMinimized
     local targetSize = isMinimized and UDim2.new(0, 320, 0, 35) or UDim2.new(0, 320, 0, 260)
@@ -390,20 +381,17 @@ minBtn.MouseButton1Click:Connect(function()
     minBtn.Text = isMinimized and "+" or "-"
 end)
 
--- Theme Cycle
 themeBtn.MouseButton1Click:Connect(function()
     currentThemeIndex = (currentThemeIndex % #THEMES) + 1
     applyTheme()
 end)
 
--- Stars Toggle
 starsBtn.MouseButton1Click:Connect(function()
     starsVisible = not starsVisible
     starsFrame.Visible = starsVisible
     starsBtn.Text = starsVisible and "★" or "☆"
 end)
 
--- Description Toggle
 descBtn.MouseButton1Click:Connect(function()
     descWindow.Visible = true
 end)
@@ -411,7 +399,6 @@ descClose.MouseButton1Click:Connect(function()
     descWindow.Visible = false
 end)
 
--- Click Logic
 button.MouseButton1Click:Connect(function()
     if isFlashing then return end
 
@@ -420,7 +407,6 @@ button.MouseButton1Click:Connect(function()
 
     if not isFlashing then
         updateDisplay()
-        -- Bounce
         task.spawn(function()
             TweenService:Create(button, TweenInfo.new(0.06, Enum.EasingStyle.Back), {
                 Size = UDim2.new(0, 234, 0, 78)
@@ -433,7 +419,7 @@ button.MouseButton1Click:Connect(function()
     end
 end)
 
--- Float Animation
+-- ===================== ANIMATIONS =====================
 task.spawn(function()
     local t = 0
     while task.wait(0.03) do
@@ -442,7 +428,6 @@ task.spawn(function()
     end
 end)
 
--- Pulse Glow
 task.spawn(function()
     local t = 0
     while task.wait(0.03) do
@@ -457,6 +442,17 @@ task.spawn(function()
     end
 end)
 
--- Initialize
+task.spawn(function()
+    while task.wait(0.04) do
+        for _, star in ipairs(starsFrame:GetChildren()) do
+            if star:IsA("Frame") then
+                local t = tick() + (star.Position.X.Offset * 10)
+                star.BackgroundTransparency = 0.2 + 0.6 * math.abs(math.sin(t))
+            end
+        end
+    end
+end)
+
+-- ===================== INITIALIZE =====================
 applyTheme()
 updateDisplay()
